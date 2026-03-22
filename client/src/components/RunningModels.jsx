@@ -80,8 +80,12 @@ export function RunningModels({ ollamaUrl }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const loadRunningModels = async () => {
-    setLoading(true);
+  const loadRunningModels = async (isInitialLoad = false) => {
+    // Only show loading state on initial load, not on background refreshes
+    // This prevents flickering during periodic updates
+    if (isInitialLoad) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const data = await fetchRunningModels(ollamaUrl);
@@ -89,14 +93,16 @@ export function RunningModels({ ollamaUrl }) {
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    loadRunningModels();
-    // Refresh every 5 seconds to update expiry times
-    const interval = setInterval(loadRunningModels, 5000);
+    loadRunningModels(true);  // Initial load with loading state
+    // Refresh every 5 seconds to update expiry times (no loading state to prevent flicker)
+    const interval = setInterval(() => loadRunningModels(false), 5000);
     return () => clearInterval(interval);
   }, [ollamaUrl]);
 
