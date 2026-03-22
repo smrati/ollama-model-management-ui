@@ -66,7 +66,7 @@ export function ModelList({ ollamaUrl, onConnectionError }) {
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
         <p className="text-gray-600 mb-2">No models found</p>
         <p className="text-gray-500 text-sm">
-          Pull a model using <code className="bg-gray-200 px-1 rounded">ollama pull <model-name></code>
+          Pull a model using <code className="bg-gray-200 px-1 rounded">ollama pull {"<model-name>"}</code>
         </p>
       </div>
     );
