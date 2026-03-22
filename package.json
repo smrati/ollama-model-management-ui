@@ -1,0 +1,14 @@
+{
+  "name": "ollama-model-management-ui",
+  "version": "1.0.0",
+  "description": "A web-based dashboard to manage your local Ollama models",
+  "private": true,
+  "scripts": {
+    "install:all": "cd server && npm install && cd ../client && npm install",
+    "server": "cd server && npm start",
+    "client": "cd client && npm run dev",
+    "dev": "npm run server & npm run client"
+  },
+  "keywords": ["ollama", "model-manager", "ai", "llm"],
+  "license": "MIT"
+}
