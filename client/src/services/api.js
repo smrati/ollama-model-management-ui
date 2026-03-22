@@ -91,6 +91,24 @@ export async function deleteModel(ollamaUrl, modelName) {
   return response.json();
 }
 
+export async function showModel(ollamaUrl, modelName) {
+  const response = await fetch(`${API_BASE}/show`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      url: ollamaUrl, 
+      model: modelName 
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to fetch model details');
+  }
+
+  return response.json();
+}
+
 export async function createModel(ollamaUrl, config, onProgress) {
   const response = await fetch(`${API_BASE}/create`, {
     method: 'POST',

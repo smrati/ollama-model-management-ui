@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { fetchModels, deleteModel } from '../services/api';
 import { ConfirmDialog } from './ConfirmDialog';
+import { ModelDetailModal } from './ModelDetailModal';
 
 // Copy to clipboard helper
 const copyToClipboard = async (text, onCopy) => {
@@ -54,6 +55,54 @@ function CopyableCell({ value, className = '' }) {
   );
 }
 
+// Model name cell with detail view on click
+function ModelNameCell({ value, className = '', onViewDetails }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (e) => {
+    e.stopPropagation();
+    if (value) {
+      await copyToClipboard(String(value), () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      });
+    }
+  };
+
+  const handleClick = () => {
+    onViewDetails(value);
+  };
+
+  return (
+    <td className="px-6 py-4 whitespace-nowrap text-sm group">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={handleClick}
+          className={`${className} hover:text-blue-600 hover:underline transition-colors`}
+          title="Click to view model details"
+        >
+          {value}
+        </button>
+        <button
+          onClick={handleCopy}
+          className="opacity-0 group-hover:opacity-70 hover:opacity-100 transition-opacity p-0.5"
+          title="Copy model name"
+        >
+          {copied ? (
+            <svg className="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          )}
+        </button>
+      </div>
+    </td>
+  );
+}
+
 function formatBytes(bytes) {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -75,6 +124,7 @@ export const ModelList = forwardRef(({ ollamaUrl, onConnectionError }, ref) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, model: null });
   const [deleting, setDeleting] = useState(false);
+  const [detailModal, setDetailModal] = useState({ isOpen: false, modelName: null });
 
   useImperativeHandle(ref, () => ({
     refresh: loadModels,
@@ -283,7 +333,11 @@ export const ModelList = forwardRef(({ ollamaUrl, onConnectionError }, ref) => {
           <tbody className="bg-white divide-y divide-gray-200">
             {getSortedModels.map((model) => (
               <tr key={model.name} className="hover:bg-gray-50">
-                <CopyableCell value={model.name} className="font-medium text-gray-900" />
+                <ModelNameCell 
+                  value={model.name} 
+                  className="font-medium text-gray-900" 
+                  onViewDetails={(name) => setDetailModal({ isOpen: true, modelName: name })}
+                />
                 <CopyableCell value={formatBytes(model.size)} className="text-gray-600" />
                 <CopyableCell value={model.details?.parameter_size || '-'} className="text-gray-600" />
                 <CopyableCell value={model.details?.quantization_level || '-'} className="text-gray-600" />
@@ -314,6 +368,13 @@ export const ModelList = forwardRef(({ ollamaUrl, onConnectionError }, ref) => {
         message={`Are you sure you want to delete "${deleteConfirm.model?.name}"? This action cannot be undone.`}
         confirmText={deleting ? "Deleting..." : "Delete"}
         danger={true}
+      />
+
+      <ModelDetailModal
+        isOpen={detailModal.isOpen}
+        onClose={() => setDetailModal({ isOpen: false, modelName: null })}
+        ollamaUrl={ollamaUrl}
+        modelName={detailModal.modelName}
       />
     </>
   );

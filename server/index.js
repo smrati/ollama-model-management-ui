@@ -249,6 +249,38 @@ app.get('/api/running', async (req, res) => {
   }
 });
 
+// Show model information
+app.post('/api/show', async (req, res) => {
+  try {
+    const ollamaUrl = req.body.url || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    const { model } = req.body;
+    
+    if (!model) {
+      return res.status(400).json({ error: 'Model name is required' });
+    }
+
+    const response = await fetch(`${ollamaUrl}/api/show`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Ollama responded with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching model info:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to fetch model information',
+      message: error.message 
+    });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
