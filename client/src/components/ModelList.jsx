@@ -1,5 +1,58 @@
-import { useState, useEffect } from 'react';
-import { fetchModels } from '../services/api';
+import { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { fetchModels, deleteModel } from '../services/api';
+import { ConfirmDialog } from './ConfirmDialog';
+
+// Copy to clipboard helper
+const copyToClipboard = async (text, onCopy) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    onCopy?.(text);
+    return true;
+  } catch (err) {
+    console.error('Failed to copy:', err);
+    return false;
+  }
+};
+
+// Copyable cell component
+function CopyableCell({ value, className = '' }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (e) => {
+    e.stopPropagation();
+    if (value && value !== '-') {
+      const success = await copyToClipboard(String(value), () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      });
+    }
+  };
+
+  return (
+    <td 
+      className={`px-6 py-4 whitespace-nowrap text-sm ${className} cursor-pointer group relative`}
+      onClick={handleCopy}
+      title={value && value !== '-' ? `Click to copy: ${value}` : undefined}
+    >
+      <span className="flex items-center gap-1">
+        {value}
+        {value && value !== '-' && (
+          <span className={`transition-all ${copied ? 'opacity-100' : 'opacity-0 group-hover:opacity-70'}`}>
+            {copied ? (
+              <svg className="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            )}
+          </span>
+        )}
+      </span>
+    </td>
+  );
+}
 
 function formatBytes(bytes) {
   if (bytes === 0) return '0 B';
@@ -15,10 +68,85 @@ function formatDate(dateString) {
   return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
 }
 
-export function ModelList({ ollamaUrl, onConnectionError }) {
+export const ModelList = forwardRef(({ ollamaUrl, onConnectionError }, ref) => {
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, model: null });
+  const [deleting, setDeleting] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    refresh: loadModels,
+    getModels: () => models
+  }));
+
+  const handleSort = (key) => {
+    setSortConfig(prevConfig => ({
+      key,
+      direction: prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const getSortedModels = useMemo(() => {
+    if (!sortConfig.key) return models;
+
+    return [...models].sort((a, b) => {
+      let aValue, bValue;
+
+      switch (sortConfig.key) {
+        case 'name':
+          aValue = a.name?.toLowerCase() || '';
+          bValue = b.name?.toLowerCase() || '';
+          break;
+        case 'size':
+          aValue = a.size || 0;
+          bValue = b.size || 0;
+          break;
+        case 'parameters':
+          aValue = a.details?.parameter_size || '';
+          bValue = b.details?.parameter_size || '';
+          break;
+        case 'quantization':
+          aValue = a.details?.quantization_level || '';
+          bValue = b.details?.quantization_level || '';
+          break;
+        case 'family':
+          aValue = a.details?.family || '';
+          bValue = b.details?.family || '';
+          break;
+        case 'modified':
+          aValue = a.modified_at ? new Date(a.modified_at).getTime() : 0;
+          bValue = b.modified_at ? new Date(b.modified_at).getTime() : 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [models, sortConfig]);
+
+  const SortIndicator = ({ columnKey }) => {
+    if (sortConfig.key !== columnKey) {
+      return (
+        <svg className="w-4 h-4 ml-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      );
+    }
+    return sortConfig.direction === 'asc' ? (
+      <svg className="w-4 h-4 ml-1 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+      </svg>
+    ) : (
+      <svg className="w-4 h-4 ml-1 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    );
+  };
 
   useEffect(() => {
     loadModels();
@@ -35,6 +163,21 @@ export function ModelList({ ollamaUrl, onConnectionError }) {
       onConnectionError?.(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteModel = async () => {
+    if (!deleteConfirm.model) return;
+    
+    setDeleting(true);
+    try {
+      await deleteModel(ollamaUrl, deleteConfirm.model.name);
+      await loadModels();
+    } catch (err) {
+      setError(`Failed to delete model: ${err.message}`);
+    } finally {
+      setDeleting(false);
+      setDeleteConfirm({ isOpen: false, model: null });
     }
   };
 
@@ -66,88 +209,112 @@ export function ModelList({ ollamaUrl, onConnectionError }) {
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
         <p className="text-gray-600 mb-2">No models found</p>
         <p className="text-gray-500 text-sm">
-          Pull a model using <code className="bg-gray-200 px-1 rounded">ollama pull {"<model-name>"}</code>
+          Pull a model using the button above or use <code className="bg-gray-200 px-1 rounded">ollama pull {"<model-name>"}</code>
         </p>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-gray-800">
-          Models ({models.length})
-        </h2>
-        <button
-          onClick={loadModels}
-          className="px-3 py-1.5 text-sm text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Refresh
-        </button>
-      </div>
-
+    <>
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                onClick={() => handleSort('name')}
+              >
+                <div className="flex items-center">
+                  Name
+                  <SortIndicator columnKey="name" />
+                </div>
+              </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                onClick={() => handleSort('size')}
+              >
+                <div className="flex items-center">
+                  Size
+                  <SortIndicator columnKey="size" />
+                </div>
+              </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                onClick={() => handleSort('parameters')}
+              >
+                <div className="flex items-center">
+                  Parameters
+                  <SortIndicator columnKey="parameters" />
+                </div>
+              </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                onClick={() => handleSort('quantization')}
+              >
+                <div className="flex items-center">
+                  Quantization
+                  <SortIndicator columnKey="quantization" />
+                </div>
+              </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                onClick={() => handleSort('family')}
+              >
+                <div className="flex items-center">
+                  Family
+                  <SortIndicator columnKey="family" />
+                </div>
+              </th>
+              <th 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                onClick={() => handleSort('modified')}
+              >
+                <div className="flex items-center">
+                  Modified
+                  <SortIndicator columnKey="modified" />
+                </div>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Size
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Parameters
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Quantization
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Family
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Modified
+                Actions
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {models.map((model) => (
+            {getSortedModels.map((model) => (
               <tr key={model.name} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                      </svg>
-                    </div>
-                    <span className="font-medium text-gray-900">{model.name}</span>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {formatBytes(model.size)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {model.details?.parameter_size || '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded">
-                    {model.details?.quantization_level || '-'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                  {model.details?.family || '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatDate(model.modified_at)}
+                <CopyableCell value={model.name} className="font-medium text-gray-900" />
+                <CopyableCell value={formatBytes(model.size)} className="text-gray-600" />
+                <CopyableCell value={model.details?.parameter_size || '-'} className="text-gray-600" />
+                <CopyableCell value={model.details?.quantization_level || '-'} className="text-gray-600" />
+                <CopyableCell value={model.details?.family || '-'} className="text-gray-600" />
+                <CopyableCell value={formatDate(model.modified_at)} className="text-gray-500" />
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <button
+                    onClick={() => setDeleteConfirm({ isOpen: true, model })}
+                    className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1.5 rounded transition-colors"
+                    title="Delete model"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    </div>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm({ isOpen: false, model: null })}
+        onConfirm={handleDeleteModel}
+        title="Delete Model"
+        message={`Are you sure you want to delete "${deleteConfirm.model?.name}"? This action cannot be undone.`}
+        confirmText={deleting ? "Deleting..." : "Delete"}
+        danger={true}
+      />
+    </>
   );
-}
+});

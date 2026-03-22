@@ -82,6 +82,173 @@ app.get('/api/version', async (req, res) => {
   }
 });
 
+// Pull/Download a model
+app.post('/api/pull', async (req, res) => {
+  try {
+    const ollamaUrl = req.body.url || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    const { model, stream = true } = req.body;
+    
+    if (!model) {
+      return res.status(400).json({ error: 'Model name is required' });
+    }
+
+    const response = await fetch(`${ollamaUrl}/api/pull`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, stream })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Ollama responded with status ${response.status}`);
+    }
+
+    if (stream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          res.write(chunk);
+        }
+        res.end();
+      } catch (streamError) {
+        console.error('Stream error:', streamError);
+        res.end();
+      }
+    } else {
+      const data = await response.json();
+      res.json(data);
+    }
+  } catch (error) {
+    console.error('Error pulling model:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to pull model',
+      message: error.message 
+    });
+  }
+});
+
+// Delete a model
+app.delete('/api/delete', async (req, res) => {
+  try {
+    const ollamaUrl = req.body.url || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    const { model } = req.body;
+    
+    if (!model) {
+      return res.status(400).json({ error: 'Model name is required' });
+    }
+
+    const response = await fetch(`${ollamaUrl}/api/delete`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Ollama responded with status ${response.status}`);
+    }
+
+    res.json({ success: true, message: `Model ${model} deleted successfully` });
+  } catch (error) {
+    console.error('Error deleting model:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to delete model',
+      message: error.message 
+    });
+  }
+});
+
+// Create a new model
+app.post('/api/create', async (req, res) => {
+  try {
+    const ollamaUrl = req.body.url || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    const { model, from, system, template, license, parameters, stream = true } = req.body;
+    
+    if (!model) {
+      return res.status(400).json({ error: 'Model name is required' });
+    }
+
+    const createPayload = { model, stream };
+    if (from) createPayload.from = from;
+    if (system) createPayload.system = system;
+    if (template) createPayload.template = template;
+    if (license) createPayload.license = license;
+    if (parameters) createPayload.parameters = parameters;
+
+    const response = await fetch(`${ollamaUrl}/api/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createPayload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Ollama responded with status ${response.status}`);
+    }
+
+    if (stream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          res.write(chunk);
+        }
+        res.end();
+      } catch (streamError) {
+        console.error('Stream error:', streamError);
+        res.end();
+      }
+    } else {
+      const data = await response.json();
+      res.json(data);
+    }
+  } catch (error) {
+    console.error('Error creating model:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to create model',
+      message: error.message 
+    });
+  }
+});
+
+// List running models
+app.get('/api/running', async (req, res) => {
+  try {
+    const ollamaUrl = req.query.url || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    const response = await fetch(`${ollamaUrl}/api/ps`);
+    
+    if (!response.ok) {
+      throw new Error(`Ollama responded with status ${response.status}`);
+    }
+    
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching running models:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to fetch running models',
+      message: error.message 
+    });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
