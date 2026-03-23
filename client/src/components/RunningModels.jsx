@@ -167,23 +167,23 @@ export function RunningModels({ ollamaUrl }) {
       <div className="divide-y divide-gray-100">
         {models.map((model) => (
           <div key={model.name} className="p-4 hover:bg-gray-50 transition-colors">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
                   </svg>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <CopyableText value={model.name} className="font-medium text-gray-900" />
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 truncate">
                     <CopyableText value={model.details?.parameter_size || 'Unknown size'} />
                     {' • '}
                     <CopyableText value={model.details?.quantization_level || 'Unknown quant'} />
                   </p>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="sm:text-right pl-12 sm:pl-0">
                 <CopyableText value={formatBytes(model.size_vram || model.size)} className="text-sm text-gray-600" />
                 <p className="text-xs text-gray-500">
                   Expires in {formatExpiresAt(model.expires_at)}

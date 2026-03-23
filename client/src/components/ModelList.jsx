@@ -268,96 +268,98 @@ export const ModelList = forwardRef(({ ollamaUrl, onConnectionError }, ref) => {
   return (
     <>
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                onClick={() => handleSort('name')}
-              >
-                <div className="flex items-center">
-                  Name
-                  <SortIndicator columnKey="name" />
-                </div>
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                onClick={() => handleSort('size')}
-              >
-                <div className="flex items-center">
-                  Size
-                  <SortIndicator columnKey="size" />
-                </div>
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                onClick={() => handleSort('parameters')}
-              >
-                <div className="flex items-center">
-                  Parameters
-                  <SortIndicator columnKey="parameters" />
-                </div>
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                onClick={() => handleSort('quantization')}
-              >
-                <div className="flex items-center">
-                  Quantization
-                  <SortIndicator columnKey="quantization" />
-                </div>
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                onClick={() => handleSort('family')}
-              >
-                <div className="flex items-center">
-                  Family
-                  <SortIndicator columnKey="family" />
-                </div>
-              </th>
-              <th 
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                onClick={() => handleSort('modified')}
-              >
-                <div className="flex items-center">
-                  Modified
-                  <SortIndicator columnKey="modified" />
-                </div>
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {getSortedModels.map((model) => (
-              <tr key={model.name} className="hover:bg-gray-50">
-                <ModelNameCell 
-                  value={model.name} 
-                  className="font-medium text-gray-900" 
-                  onViewDetails={(name) => setDetailModal({ isOpen: true, modelName: name })}
-                />
-                <CopyableCell value={formatBytes(model.size)} className="text-gray-600" />
-                <CopyableCell value={model.details?.parameter_size || '-'} className="text-gray-600" />
-                <CopyableCell value={model.details?.quantization_level || '-'} className="text-gray-600" />
-                <CopyableCell value={model.details?.family || '-'} className="text-gray-600" />
-                <CopyableCell value={formatDate(model.modified_at)} className="text-gray-500" />
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <button
-                    onClick={() => setDeleteConfirm({ isOpen: true, model })}
-                    className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1.5 rounded transition-colors"
-                    title="Delete model"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200" style={{ minWidth: '800px' }}>
+            <thead className="bg-gray-50">
+              <tr>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('name')}
+                >
+                  <div className="flex items-center">
+                    Name
+                    <SortIndicator columnKey="name" />
+                  </div>
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('size')}
+                >
+                  <div className="flex items-center">
+                    Size
+                    <SortIndicator columnKey="size" />
+                  </div>
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('parameters')}
+                >
+                  <div className="flex items-center">
+                    Parameters
+                    <SortIndicator columnKey="parameters" />
+                  </div>
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('quantization')}
+                >
+                  <div className="flex items-center">
+                    Quantization
+                    <SortIndicator columnKey="quantization" />
+                  </div>
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('family')}
+                >
+                  <div className="flex items-center">
+                    Family
+                    <SortIndicator columnKey="family" />
+                  </div>
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('modified')}
+                >
+                  <div className="flex items-center">
+                    Modified
+                    <SortIndicator columnKey="modified" />
+                  </div>
+                </th>
+                <th className="sticky right-0 bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]">
+                  Actions
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {getSortedModels.map((model) => (
+                <tr key={model.name} className="group hover:bg-gray-50">
+                  <ModelNameCell 
+                    value={model.name} 
+                    className="font-medium text-gray-900" 
+                    onViewDetails={(name) => setDetailModal({ isOpen: true, modelName: name })}
+                  />
+                  <CopyableCell value={formatBytes(model.size)} className="text-gray-600" />
+                  <CopyableCell value={model.details?.parameter_size || '-'} className="text-gray-600" />
+                  <CopyableCell value={model.details?.quantization_level || '-'} className="text-gray-600" />
+                  <CopyableCell value={model.details?.family || '-'} className="text-gray-600" />
+                  <CopyableCell value={formatDate(model.modified_at)} className="text-gray-500" />
+                  <td className="sticky right-0 px-6 py-4 whitespace-nowrap text-sm bg-white group-hover:bg-gray-50 transition-colors shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]">
+                    <button
+                      onClick={() => setDeleteConfirm({ isOpen: true, model })}
+                      className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1.5 rounded transition-colors"
+                      title="Delete model"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <ConfirmDialog
