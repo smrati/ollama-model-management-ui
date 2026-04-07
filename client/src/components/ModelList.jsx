@@ -125,6 +125,7 @@ export const ModelList = forwardRef(({ ollamaUrl, onConnectionError }, ref) => {
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, model: null });
   const [deleting, setDeleting] = useState(false);
   const [detailModal, setDetailModal] = useState({ isOpen: false, modelName: null });
+  const [searchQuery, setSearchQuery] = useState('');
 
   useImperativeHandle(ref, () => ({
     refresh: loadModels,
@@ -138,10 +139,26 @@ export const ModelList = forwardRef(({ ollamaUrl, onConnectionError }, ref) => {
     }));
   };
 
-  const getSortedModels = useMemo(() => {
-    if (!sortConfig.key) return models;
+  const filteredModels = useMemo(() => {
+    if (!searchQuery.trim()) return models;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return models.filter(model => {
+      const name = model.name?.toLowerCase() || '';
+      // Check multiple possible locations for family
+      const family = (model.details?.family || model.family || '').toLowerCase();
+      
+      return name.includes(query) || family.includes(query);
+    });
+  }, [models, searchQuery]);
 
-    return [...models].sort((a, b) => {
+  const getSortedModels = useMemo(() => {
+    // Clone to avoid mutation and ensure fresh reference
+    const baseModels = [...filteredModels];
+    
+    if (!sortConfig.key) return baseModels;
+
+    return baseModels.sort((a, b) => {
       let aValue, bValue;
 
       switch (sortConfig.key) {
@@ -162,8 +179,8 @@ export const ModelList = forwardRef(({ ollamaUrl, onConnectionError }, ref) => {
           bValue = b.details?.quantization_level || '';
           break;
         case 'family':
-          aValue = a.details?.family || '';
-          bValue = b.details?.family || '';
+          aValue = (a.details?.family || a.family || '').toLowerCase();
+          bValue = (b.details?.family || b.family || '').toLowerCase();
           break;
         case 'modified':
           aValue = a.modified_at ? new Date(a.modified_at).getTime() : 0;
@@ -177,7 +194,7 @@ export const ModelList = forwardRef(({ ollamaUrl, onConnectionError }, ref) => {
       if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [models, sortConfig]);
+  }, [filteredModels, sortConfig]);
 
   const SortIndicator = ({ columnKey }) => {
     if (sortConfig.key !== columnKey) {
@@ -267,6 +284,31 @@ export const ModelList = forwardRef(({ ollamaUrl, onConnectionError }, ref) => {
 
   return (
     <>
+      <div className="mb-4 relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+        <input
+          type="text"
+          placeholder="Search models by name or family..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-all"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200" style={{ minWidth: '800px' }}>
@@ -332,31 +374,51 @@ export const ModelList = forwardRef(({ ollamaUrl, onConnectionError }, ref) => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {getSortedModels.map((model) => (
-                <tr key={model.name} className="group hover:bg-gray-50">
-                  <ModelNameCell 
-                    value={model.name} 
-                    className="font-medium text-gray-900" 
-                    onViewDetails={(name) => setDetailModal({ isOpen: true, modelName: name })}
-                  />
-                  <CopyableCell value={formatBytes(model.size)} className="text-gray-600" />
-                  <CopyableCell value={model.details?.parameter_size || '-'} className="text-gray-600" />
-                  <CopyableCell value={model.details?.quantization_level || '-'} className="text-gray-600" />
-                  <CopyableCell value={model.details?.family || '-'} className="text-gray-600" />
-                  <CopyableCell value={formatDate(model.modified_at)} className="text-gray-500" />
-                  <td className="sticky right-0 px-6 py-4 whitespace-nowrap text-sm bg-white group-hover:bg-gray-50 transition-colors shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]">
-                    <button
-                      onClick={() => setDeleteConfirm({ isOpen: true, model })}
-                      className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1.5 rounded transition-colors"
-                      title="Delete model"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              {getSortedModels.length > 0 ? (
+                getSortedModels.map((model) => (
+                  <tr key={model.name} className="group hover:bg-gray-50">
+                    <ModelNameCell 
+                      value={model.name} 
+                      className="font-medium text-gray-900" 
+                      onViewDetails={(name) => setDetailModal({ isOpen: true, modelName: name })}
+                    />
+                    <CopyableCell value={formatBytes(model.size)} className="text-gray-600" />
+                    <CopyableCell value={model.details?.parameter_size || '-'} className="text-gray-600" />
+                    <CopyableCell value={model.details?.quantization_level || '-'} className="text-gray-600" />
+                    <CopyableCell value={model.details?.family || '-'} className="text-gray-600" />
+                    <CopyableCell value={formatDate(model.modified_at)} className="text-gray-500" />
+                    <td className="sticky right-0 px-6 py-4 whitespace-nowrap text-sm bg-white group-hover:bg-gray-50 transition-colors shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)]">
+                      <button
+                        onClick={() => setDeleteConfirm({ isOpen: true, model })}
+                        className="text-red-600 hover:text-red-800 hover:bg-red-50 p-1.5 rounded transition-colors"
+                        title="Delete model"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center">
+                      <svg className="w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
-                    </button>
+                      <p className="text-lg font-medium">No models match your search</p>
+                      <p className="text-sm">Try adjusting your search terms or clear the search</p>
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="mt-4 text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        Clear search
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
