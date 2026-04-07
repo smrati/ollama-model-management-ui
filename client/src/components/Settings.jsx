@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { testConnection } from '../services/api';
 
-export function Settings({ isOpen, onClose, currentUrl, onSave }) {
+export function Settings({ isOpen, onClose, currentUrl, urlHistory = [], onSave }) {
   const [url, setUrl] = useState(currentUrl);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
@@ -51,12 +51,22 @@ export function Settings({ isOpen, onClose, currentUrl, onSave }) {
           </label>
           <input
             type="text"
+            list="url-history"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="http://localhost:11434"
           />
+          <datalist id="url-history">
+            {urlHistory.map((h, i) => (
+              <option key={i} value={h} />
+            ))}
+          </datalist>
+          <p className="mt-1 text-xs text-gray-500">
+            Double-click or start typing to see previously used URLs
+          </p>
         </div>
+
 
         {testResult && (
           <div

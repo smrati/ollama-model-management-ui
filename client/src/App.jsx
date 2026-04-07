@@ -7,7 +7,7 @@ import { CreateModelModal } from './components/CreateModelModal';
 import { RunningModels } from './components/RunningModels';
 
 function App() {
-  const { ollamaUrl, saveConfig, isLoaded } = useConfig();
+  const { ollamaUrl, urlHistory, saveConfig, isLoaded } = useConfig();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pullModalOpen, setPullModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -112,6 +112,7 @@ function App() {
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         currentUrl={ollamaUrl}
+        urlHistory={urlHistory}
         onSave={saveConfig}
       />
 
